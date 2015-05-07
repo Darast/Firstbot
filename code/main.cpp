@@ -35,8 +35,8 @@ int main(int argc, const char* argv[])
   videoCap.set(CV_CAP_PROP_FRAME_HEIGHT, height);
   videoCap >> frame;@check */
   
-  frame = imread("../img/Picture 4.jpg", 1);
-  imshow( "Display window", frame);
+  frame = imread("../../img/Picture 1.jpg", 1);
+  //imshow( "Display window", frame);
   waitKey(0);
 
   Mat hsv_frame = frame.clone();
@@ -50,7 +50,7 @@ int main(int argc, const char* argv[])
   
   Mat dilateKernel = getStructuringElement(MORPH_RECT, Size(5, 5));
   dilate(mask, mask, dilateKernel);
-  imshow( "Display window", mask);
+  //imshow( "Display window", mask);
   waitKey(0);
   
   int i, j;
