@@ -1,7 +1,11 @@
+Damien
+Aucune activité enregistrée.
+
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
 #include <iostream>
+#include <unistd.h>
 #include <stdio.h>
 
 #include "serialcmd.hpp"
@@ -10,48 +14,66 @@ using namespace std;
 using namespace cv;
 
 
+VideoCapture videoCap;
+
+Mat frame, hsv_frame, mask;
+Mat erodeKernel, dilateKernel;
+int width = 320, height = 180, roi_height = 70;
+
+int h = 250, s = 105;
+int tol = 120;
+
+
+bool setup(VideoCapture &videoCap);
+bool loop();
+
+
 int main(int argc, const char* argv[])
 {
-  //openSerial(); @check
+  setup(videoCap);
   
-  Mat frame;
-  
-  int width = 1280;//320;@check
-  int height = 720;//180;
-  
-  int h = 250, s = 105;
-  int tol = 120;
-  
-  /*VideoCapture videoCap(0);
-  namedWindow( "Display window", WINDOW_AUTOSIZE );
+  while(1)
+  {
+    loop();
+  }
+}
 
+bool setup(VideoCapture &videoCap)
+{
+  bool is_OK;
+  
+  videoCap = VideoCapture(0);
   if (!videoCap.isOpened())
   {
     cout << "Failed to open video cam!" << endl;
-    return -1;
+    is_OK = false;
   }
-
+  
   videoCap.set(CV_CAP_PROP_FRAME_WIDTH, width);
   videoCap.set(CV_CAP_PROP_FRAME_HEIGHT, height);
-  videoCap >> frame;@check */
   
-  frame = imread("../../img/Picture 1.jpg", 1);
-  //imshow( "Display window", frame);
-  waitKey(0);
+  is_OK &= openSerial();
+  
+  return is_OK;
+}
 
-  Mat hsv_frame = frame.clone();
+bool loop()
+{
+  videoCap >> frame;
+
+  hsv_frame = frame.clone();
   cvtColor(frame, hsv_frame, CV_BGR2HSV);
 
-  Mat mask = Mat(height, width, CV_8UC1, 1);
+  mask = Mat(height, width, CV_8UC1, 1);
   inRange(hsv_frame, Scalar(h - tol, s - tol, 0), Scalar(h + tol, s + tol, 255), mask);
   
-  Mat erodeKernel = getStructuringElement(MORPH_RECT, Size(6, 6));
+  erodeKernel = getStructuringElement(MORPH_RECT, Size(6, 6));
   erode(mask, mask, erodeKernel);
   
-  Mat dilateKernel = getStructuringElement(MORPH_RECT, Size(5, 5));
+  dilateKernel = getStructuringElement(MORPH_RECT, Size(5, 5));
   dilate(mask, mask, dilateKernel);
   //imshow( "Display window", mask);
-  waitKey(0);
+  waitKey(100);
   
   int i, j;
   Scalar intens;
@@ -63,7 +85,7 @@ int main(int argc, const char* argv[])
   
   
   // Parcours du masque ligne par ligne en commençant par le bas
-  for (i = height - 1; i > 650; i--) // Pas à adapter : 5px, 20px, 50 px...
+  for (i = height - 1; i > height - roi_height; i--) // Pas à adapter : 5px, 20px, 50 px...
   {
     // Parcours de gauche à droite
     isWhite = false;
@@ -87,24 +109,30 @@ int main(int argc, const char* argv[])
     }
     rightBorder = j;
     
-    if (rightBorder - leftBorder < width / 4)
+    if ( (rightBorder - leftBorder < width / 4) && (i > 0) && (j > 0) )
       centers.push_back((leftBorder + rightBorder) / 2. );
   }
   
-  sum = 0;
-  for (int k = 0; k < centers.size(); k++)
-    sum += centers[k];
-  mean = (int) sum / centers.size();
-  cout << mean << endl;
-  
-  // Si la position horizontale moyenne est trop à droite
-  if (mean > width * 2 /3)
-    commandRight();
-  // Si la position horizontale moyenne est trop à gauche
-  else if (mean < width /3)
-    commandLeft();
-  // Si la bande est située suffisamment au centre
+  if (centers.size() > 5)
+  {
+    sum = 0;
+    for (int k = 0; k < centers.size(); k++)
+      sum += centers[k];
+    mean = (int) sum / centers.size();
+    
+    // Si la position horizontale moyenne est trop à droite
+    if (mean > width * 2 /3)
+      commandRight();
+    // Si la position horizontale moyenne est trop à gauche
+    else if (mean < width /3)
+      commandLeft();
+    // Si la bande est située suffisamment au centre
+    else
+      commandForward();
+  }
   else
-    commandForward();
+  {
+    commandLeft();
+  }
   
 }
